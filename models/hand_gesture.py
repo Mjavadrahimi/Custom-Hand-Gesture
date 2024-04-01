@@ -67,10 +67,11 @@ class HandGesture:
         self.model.load_state_dict(torch.load(PATH))
         self.model.eval()
 
-    def predict(self, landmark: list[(float, float)]) -> str:
+    def predict(self, landmark: list[(float, float)]) -> (str, float):
         input = to_tensor(landmark, self.device)
         pred = self.model(input)
-        return CODE_TO_STRING[pred.argmax().item()]
+        pred_string, pred_confidence = CODE_TO_STRING[pred.argmax().item()], pred.max().item()
+        return pred_string, pred_confidence
 
 
 if __name__ == '__main__':
