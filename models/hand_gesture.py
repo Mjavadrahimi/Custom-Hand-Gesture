@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import mediapipe as mp
 
 
 class Model(nn.Module):
@@ -31,7 +30,8 @@ def landmark_bbox(hand_landmarks, height, width) -> [float, float, float, float]
     return x_min, y_min, x_max, y_max
 
 
-def normalized_landmarks(hand_landmarks, bbox, height, width) -> list[(float, float)]:
+def normalized_landmarks(hand_landmarks, height, width) -> list[(float, float)]:  # mp.landmark => [(int, int)]
+    bbox = landmark_bbox(hand_landmarks, height, width)
     x_min, y_min, x_max, y_max = bbox
     bbox_W, bbox_H = (x_max - x_min), (y_max - y_min)
     normalized_landmarks = []
@@ -42,23 +42,41 @@ def normalized_landmarks(hand_landmarks, bbox, height, width) -> list[(float, fl
     return normalized_landmarks
 
 
+def to_tensor(positions, device):  # [(float, float)] => tensor[42]
+    positions = torch.Tensor(positions).type(torch.float).flatten().to(device)
+    return positions
+
+
+CODE_TO_STRING = {
+    0: 'clenched_fist',
+    1: 'index_finger_up',
+    2: 'open_palm'
+}
+
+STRING_TO_CODE = {
+    'clenched_fist': 0,
+    'index_finger_up': 1,
+    'open_palm': 2
+}
+
+
 class HandGesture:
     def __init__(self, PATH):
-        self.model = Model(42, 20, 3)
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model = Model(42, 20, 3).to(self.device)
         self.model.load_state_dict(torch.load(PATH))
         self.model.eval()
 
-    def predict(self, input) -> int:
+    def predict(self, landmark: list[(float, float)]) -> str:
+        input = to_tensor(landmark, self.device)
         pred = self.model(input)
-
-        return pred
-
-    def landmark_to_tensor(self, hand_landmarks):
-        hand_landmarks
-        return
+        return CODE_TO_STRING[pred.argmax().item()]
 
 
-MODEL_PATH = 'hand_gesture_model.pth'
 if __name__ == '__main__':
     # load model
-    obj = HandGesture(MODEL_PATH)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    MODEL_PATH = 'hand_gesture_model.pth'
+    obj = HandGesture(MODEL_PATH, device)
+    x = to_tensor([(1, 1), (2, 2), (3, 3)])
+    print(x.dtype)
